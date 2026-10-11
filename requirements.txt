@@ -1,0 +1,5 @@
+# Tested with Python 3.12 on Windows 11.
+pedalboard>=0.9.26,<0.10
+numpy>=2.0
+soundfile>=0.13
+sounddevice>=0.5

@@ -1,0 +1,4 @@
+# Only needed to build the Windows installer (see tools/build_installer.ps1).
+-r requirements.txt
+pyinstaller>=6.10
+pillow>=10.0

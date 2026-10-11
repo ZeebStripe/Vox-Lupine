@@ -1,0 +1,21 @@
+# Python
+.venv/
+.build-venv/
+__pycache__/
+*.pyc
+
+# Installer build output (attach dist/*.exe to a GitHub Release instead)
+build/
+dist/
+
+# Your personal settings and presets (created by the app)
+config.json
+scenes.json
+eq_presets.json
+
+# Audio you record or render while testing
+samples/
+previews/
+*.wav
+*.m4a
+*.mp3
