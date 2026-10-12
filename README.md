@@ -36,6 +36,34 @@ It runs on your CPU and uses well under 1 ms per 5 ms audio chunk.
 
 ---
 
+## Common issues
+
+**No audio coming through your microphone?**
+Check your input device in Windows' sound settings first:
+
+1. Open **Settings → System → Sound** and look under **Input**.
+2. Make sure your **real microphone** is selected (not "CABLE Output"), and that the
+   level bar moves when you talk. If it doesn't, raise the **Input volume** or click the
+   mic to check that it isn't muted or disabled.
+3. Check **Settings → Privacy & security → Microphone**: **Microphone access** and
+   **Let desktop apps access your microphone** must both be **on**.
+4. In Vox Lupine, open the **Devices** tab and make sure **Mic** is that same microphone,
+   or **Windows default**. The **Mic in** meter should move when you talk.
+
+**Your voice isn't reaching OBS or Discord?** Set the microphone in that app to
+**CABLE Output (VB-Audio Virtual Cable)**, make sure Vox Lupine says **Running**, and
+check that **Send to** on the Devices tab is **CABLE Input**.
+
+**Static or crackle while talking** (Discord, Telegram, etc.)? Lower **Volume** on the
+Voice tab a few dB and keep the **Voice out** meter mostly green.
+
+**"Windows protected your PC" when installing?** The installer isn't code-signed. Click
+**More info → Run anyway**.
+
+More fixes are in [Troubleshooting](#troubleshooting).
+
+---
+
 ## Install
 
 You need Windows 10 or 11 and [VB-Cable](https://vb-audio.com/Cable/), the free
