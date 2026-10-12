@@ -19,7 +19,16 @@ from micaccess import mic_access_problems
 from fx import DEFAULTS as FX_DEFAULTS, MOD_TYPES
 from presets import PRESETS
 
-PRESET_CHOICES = ["none"] + list(PRESETS)
+# "Voice style" = the base EQ + levelling every other control builds on. Settings keep
+# the internal names (none/subtle/match/husky); the window shows friendly ones.
+STYLES = {  # internal name -> (shown name, one-line description)
+    None: ("Off", "Your mic as it is: no shaping or levelling (quieter)."),
+    "subtle": ("Light polish", "A gentle lift: a bit more body and clarity."),
+    "match": ("Full & clear", "Fuller, clearer and more forward. Best place to start."),
+    "husky": ("Husky", "Full & clear plus a soft, smoky rasp."),
+}
+assert set(STYLES) - {None} == set(PRESETS)
+STYLE_BY_LABEL = {label: key for key, (label, _) in STYLES.items()}
 def resource(rel):
     """Path to a bundled file, both from source and inside the built .exe."""
     import sys
@@ -265,9 +274,13 @@ class App:
 
     def _voice_tab(self, f):
         r = 0
-        r = self._combo(f, r, "preset", "Base tone", PRESET_CHOICES,
-                        to_cfg=lambda v: None if v == "none" else v,
-                        from_cfg=lambda v: v or "none")
+        r = self._combo(f, r, "preset", "Voice style", [label for label, _ in STYLES.values()],
+                        to_cfg=STYLE_BY_LABEL.get,
+                        from_cfg=lambda v: STYLES.get(v, STYLES[None])[0])
+        self.style_hint = ttk.Label(f, style="Hint.TLabel")
+        self.style_hint.grid(row=r, column=1, columnspan=2, sticky="w", padx=6, pady=(0, 4))
+        self._show_style_hint()
+        r += 1
         r = self._slider(f, r, "warmth", "Warmth", 0, 1.5, 0.05, "{:.2f}")
         r = self._slider(f, r, "bright", "Brightness", 0, 1.5, 0.05, "{:.2f}")
         r = self._slider(f, r, "volume_db", "Volume", -24, 6, 0.5, "{:+.1f} dB")
@@ -327,9 +340,14 @@ class App:
         except Exception as e:  # device failed to open
             messagebox.showerror(APP_NAME, str(e))
             self.engine.stop()
+        if key == "preset":
+            self._show_style_hint()
         if self.eqgraph and key in BASE_KEYS:
             self.eqgraph.redraw()       # the whole-voice curve depends on these
         self.update_dirty()
+
+    def _show_style_hint(self):
+        self.style_hint.config(text=STYLES.get(self.engine.cfg["preset"], STYLES[None])[1])
 
     def set_value(self, key, value):
         """Change a setting and move its widget to match."""

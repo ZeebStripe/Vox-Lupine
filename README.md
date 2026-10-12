@@ -10,7 +10,7 @@ processed voice. Made with streamers and PNGtubers in mind.
 
 - **Cleanup:** rumble filter, de-popper for plosives, de-esser, and a smart noise gate
   that ignores keyboard clicks
-- **Tone:** warmth, brightness, a few "base tones", and bass/mid/treble
+- **Tone:** warmth, brightness, a choice of voice styles, and bass/mid/treble
 - **Draggable 5-point EQ** with a live curve, plus built-in EQ presets for speech
 - **Effects:** grit/growl, radio, chorus/vibrato/flanger/phaser/tremolo/robot, echo, reverb
 - **Presets:** save whole sounds and switch with **Ctrl+Alt+1–9 from anywhere**, even while a game has focus
@@ -28,7 +28,7 @@ It runs on your CPU and uses well under 1 ms per 5 ms audio chunk.
 
 | Voice | Effects |
 |---|---|
-| <img src="docs/screenshots/voice.png" width="330" alt="Voice tab: base tone, warmth, brightness, volume, cleanup, bass/mid/treble"> | <img src="docs/screenshots/effects.png" width="330" alt="Effects tab: grit, radio, modulation, echo, reverb"> |
+| <img src="docs/screenshots/voice.png" width="330" alt="Voice tab: voice style, warmth, brightness, volume, cleanup, bass/mid/treble"> | <img src="docs/screenshots/effects.png" width="330" alt="Effects tab: grit, radio, modulation, echo, reverb"> |
 | **Presets menu** | **Devices** |
 | <img src="docs/screenshots/presets-menu.png" width="330" alt="Presets menu with Ctrl+Alt+1-5 shortcuts"> | <img src="docs/screenshots/devices.png" width="330" alt="Devices tab: mic, VB-Cable output, headphones"> |
 
@@ -133,8 +133,15 @@ which is normal for any live voice processing.
 - **Listen in headphones**, with its own volume slider while it's on
 - **Preset** dropdown, and the **Presets** menu in the menu bar
 
-**Voice tab:** base tone (subtle / match / husky / none), warmth, brightness, volume,
-noise cleanup on/off, and bass/mid/treble.
+**Voice tab**
+- **Voice style** is the starting sound everything else builds on. A short description
+  appears under it when you pick one:
+  - **Full & clear** (default): fuller, clearer and more forward. Best place to start.
+  - **Light polish**: a gentler version for when Full & clear is too much.
+  - **Husky**: Full & clear plus a soft, smoky rasp.
+  - **Off**: your mic as it is, with no shaping or levelling, so it's quieter.
+- **Warmth**, **Brightness**, **Volume**, **Noise cleanup** on/off, and **Bass / Mid /
+  Treble** for extra tone on top.
 
 **EQ tab:** a 5-point EQ on a graph.
 - Drag a point left/right to change frequency and up/down to boost or cut.
@@ -195,7 +202,7 @@ and `tests\test_no_static.py` (no stage adds noise).
 ## How it works
 
 ```
-mic → cleanup → warmth → brightness → base tone → bass/mid/treble → 5-point EQ
+mic → cleanup → warmth → brightness → voice style → bass/mid/treble → 5-point EQ
     → effects → volume → soft safety ceiling → VB-Cable (+ optional headphones)
 ```
 
@@ -208,7 +215,7 @@ absorbs timing differences between the two devices.
 |---|---|
 | `app.py` | The window |
 | `engine.py` | Audio devices, buffering and settings |
-| `presets.py` | The voice chain and base tones |
+| `presets.py` | The voice chain and voice styles |
 | `cleanup.py`, `warmth.py`, `bright.py`, `fx.py`, `peq.py` | Processing stages |
 | `eqgraph.py` | The EQ tab |
 | `hotkeys.py` | Global Ctrl+Alt+1–9 |

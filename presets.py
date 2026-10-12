@@ -1,6 +1,7 @@
-"""The voice chain and its "base tone" EQs.
+"""The voice chain and its "voice style" EQs (shown in the app as Light polish,
+Full & clear and Husky; see STYLES in app.py).
 
-Voice = cleanup -> warmth -> brightness -> base tone -> effects -> volume.
+Voice = cleanup -> warmth -> brightness -> voice style -> effects -> volume.
 Everything is zero/low-latency: filters, dynamics and light saturation only
 (no pitch shifting), so it runs in real time with a few ms of processing delay.
 """
