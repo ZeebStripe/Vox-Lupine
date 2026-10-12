@@ -39,7 +39,8 @@ It runs on your CPU and uses well under 1 ms per 5 ms audio chunk.
 ## Common issues
 
 **No audio coming through your microphone?**
-Check your input device in Windows' sound settings first:
+Vox Lupine shows a red warning when your mic delivers no sound, with buttons that open
+the right Windows settings. Check your input device in Windows' sound settings first:
 
 1. Open **Settings → System → Sound** and look under **Input**.
 2. Make sure your **real microphone** is selected (not "CABLE Output"), and that the

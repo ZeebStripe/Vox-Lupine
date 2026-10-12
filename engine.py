@@ -205,6 +205,31 @@ class Engine:
         self.underruns = self.drops = 0
         self.proc_ms = deque(maxlen=400)
         self.names = {}
+        self._reset_mic_health()
+
+    # ----- microphone health -----
+    # A working mic always picks up some room noise, so long stretches of *exact*
+    # digital silence mean something blocks it: Windows privacy settings, a muted or
+    # disabled mic, or an input volume of 0.
+    SILENT_SECONDS = 3.0      # pure silence this long -> "silent"
+    QUIET_SECONDS = 8.0       # nothing above QUIET_DB since Start this long -> "quiet"
+    QUIET_DB = -55.0
+
+    def _reset_mic_health(self):
+        self.mic_blocks = 0
+        self.mic_zero_run = 0
+        self.mic_loudest_db = -200.0
+
+    def mic_status(self):
+        """'silent', 'quiet' or 'ok' (only meaningful while running)."""
+        if not self.running:
+            return "ok"
+        block_s = self.cfg["block"] / self.cfg["samplerate"]
+        if self.mic_zero_run * block_s >= self.SILENT_SECONDS:
+            return "silent"
+        if self.mic_blocks * block_s >= self.QUIET_SECONDS and self.mic_loudest_db < self.QUIET_DB:
+            return "quiet"
+        return "ok"
 
     # ----- control (any thread) -----
     def set(self, key, value):
@@ -221,7 +246,15 @@ class Engine:
     def start(self):
         c = self.cfg
         sr, block = c["samplerate"], c["block"]
-        in_idx, self.names["in"] = find_device(c["input_device"], "input", c["host_api"])
+        try:
+            in_idx, self.names["in"] = find_device(c["input_device"], "input", c["host_api"])
+        except RuntimeError:
+            if not c["input_device"]:
+                raise
+            raise RuntimeError(
+                f"Your microphone '{c['input_device']}' wasn't found. It may be unplugged, "
+                f"switched off (wireless headsets often sleep), or disabled in Windows.\n"
+                f"Turn it on and press Start again, or choose another mic on the Devices tab.")
         out_idx, self.names["out"] = find_device(c["output_device"], "output", c["host_api"])
         if is_virtual_cable(self.names["in"]) and is_virtual_cable(self.names["out"]):
             raise RuntimeError(
@@ -231,6 +264,7 @@ class Engine:
         self.voice = make_voice(c)
         self.pending.clear()
         self.underruns = self.drops = 0
+        self._reset_mic_health()
         self.main = _Output(self, out_idx, sr, block)
         self.inp = sd.InputStream(device=in_idx, channels=1, samplerate=sr, blocksize=block,
                                   dtype="float32", latency="low", callback=self._on_input)
@@ -279,7 +313,12 @@ class Engine:
             apply_setting(self.voice, *self.pending.popleft())
         x = indata[:, 0].astype(np.float32)
         y = self.voice(x)
-        self.in_db = max(20 * np.log10(np.abs(x).max() + 1e-9), self.in_db - 1.5)
+        peak = float(np.abs(x).max())
+        self.mic_blocks += 1
+        self.mic_zero_run = self.mic_zero_run + 1 if peak < 1e-7 else 0
+        peak_db = 20 * np.log10(peak + 1e-12)
+        self.mic_loudest_db = max(self.mic_loudest_db, peak_db)
+        self.in_db = max(max(peak_db, -180.0), self.in_db - 1.5)
         self.out_db = max(20 * np.log10(np.abs(y).max() + 1e-9), self.out_db - 1.5)
         self.main.push(y)
         with self.lock:

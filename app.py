@@ -6,6 +6,7 @@ Changes apply instantly. "Save settings" stores them in config.json for next tim
 sound you can flip between; they're stored in scenes.json.
 """
 import copy
+import os
 import tkinter as tk
 from tkinter import messagebox, simpledialog, ttk
 
@@ -14,6 +15,7 @@ from engine import (SCENE_KEYS, SCENES, Engine, device_names, load_config, load_
                     save_config, save_scenes)
 from eqgraph import BASE_KEYS, EQGraph
 from hotkeys import GlobalHotkeys
+from micaccess import mic_access_problems
 from fx import DEFAULTS as FX_DEFAULTS, MOD_TYPES
 from presets import PRESETS
 
@@ -91,11 +93,14 @@ class App:
 
         nb = ttk.Notebook(root)
         nb.grid(row=1, sticky="nsew", padx=14)
+        self.nb = nb
         self.eqgraph = None
         self._voice_tab(self._tab(nb, "Voice"))
         self.eqgraph = EQGraph(self._tab(nb, "EQ"), self)
         self._fx_tab(self._tab(nb, "Effects"))
-        self._device_tab(self._tab(nb, "Devices"))
+        self.devices_tab = self._tab(nb, "Devices")
+        self._device_tab(self.devices_tab)
+        self._mic_banner()
 
         bottom = ttk.Frame(root, padding=14)
         bottom.grid(row=2, sticky="ew")
@@ -159,6 +164,60 @@ class App:
             ttk.Label(f, text=hint, style="Hint.TLabel").grid(row=r, column=1, columnspan=2,
                                                               sticky="w", pady=(6, 0))
         return r + 1
+
+    # ---------- "no sound from your mic" warning ----------
+    BANNER_BG, BANNER_FG = "#fdecea", "#7b241c"
+
+    def _mic_banner(self):
+        """Warning shown by tick() when the mic delivers no sound. It's laid *over* the
+        top of the tab area instead of inserted into the layout, so the window never
+        changes size (inserting it pushed Save below the taskbar on 1080p screens)."""
+        self.banner = tk.Frame(self.root, bg=self.BANNER_BG, highlightbackground="#e6a19a",
+                               highlightthickness=1)
+        self.banner_text = tk.Label(self.banner, bg=self.BANNER_BG, fg=self.BANNER_FG,
+                                    justify="left", anchor="w", wraplength=360,
+                                    font=("Segoe UI", 9))
+        self.banner_text.pack(fill="x", padx=8, pady=(6, 3))
+        btns = tk.Frame(self.banner, bg=self.BANNER_BG)
+        btns.pack(fill="x", padx=8, pady=(0, 7))
+        ttk.Button(btns, text="Sound settings",
+                   command=lambda: os.startfile("ms-settings:sound")).pack(side="left")
+        ttk.Button(btns, text="Mic privacy",
+                   command=lambda: os.startfile("ms-settings:privacy-microphone")).pack(side="left", padx=6)
+        ttk.Button(btns, text="Choose mic",
+                   command=lambda: self.nb.select(self.devices_tab)).pack(side="left")
+        ttk.Button(btns, text="Hide", command=self._hide_banner).pack(side="right")
+        self.banner_kind = "ok"
+
+    def _hide_banner(self):
+        self.banner.place_forget()      # stays hidden until the situation changes
+
+    def _update_mic_banner(self):
+        kind = self.engine.mic_status()
+        if kind == self.banner_kind:
+            return                     # only touch the window when the situation changes
+        self.banner_kind = kind
+        if kind == "ok":
+            self.banner.place_forget()
+            return
+        mic = self.engine.names.get("in", "your microphone")
+        if kind == "silent":
+            problems = mic_access_problems()
+            if problems:
+                text = ("No sound from your microphone: Windows is blocking it ("
+                        + "; ".join(problems) + "). Click Mic privacy, turn access on, "
+                        "then press Stop and Start.")
+            else:
+                text = (f"No sound at all from \"{mic}\". It may be muted, set to 0 volume, "
+                        "disabled, or not the mic you're using. Open Sound settings → Input, "
+                        "pick your microphone and check that its level bar moves when you talk.")
+        else:
+            text = (f"Barely any sound from \"{mic}\" so far. Say something: if the Mic in "
+                    "meter stays flat, check Sound settings → Input, or choose another mic.")
+        self.banner_text.config(text=text)
+        # Just below the tab headers, full width of the tab area, on top of its content.
+        self.banner.place(in_=self.nb, x=0, y=40, relwidth=1.0)
+        self.banner.lift()
 
     # ---------- tabs ----------
     def _scene_row(self, f, r):
@@ -463,6 +522,7 @@ class App:
 
     def tick(self):
         self._poll_hotkeys()
+        self._update_mic_banner()
         e = self.engine
         self._set(self.run_btn, text="■  Stop" if e.running else "▶  Start")
         if e.running:
