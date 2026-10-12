@@ -1,5 +1,5 @@
 <p align="center">
-  <img src="assets/vox-lupine.png" width="96" alt="Vox Lupine logo: a wolf head in front of a full moon">
+  <img src="assets/vox-lupine.png" width="96" alt="Vox Lupine logo: a howling wolf silhouette with sound waves and a circuit chip">
 </p>
 
 <h1 align="center">Vox Lupine</h1>
