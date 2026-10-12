@@ -12,6 +12,7 @@ from tkinter import messagebox, simpledialog, ttk
 
 from about import APP_NAME
 from engine import (SCENE_KEYS, SCENES, Engine, device_names, load_config, load_scenes,
+                    rescan_devices,
                     save_config, save_scenes)
 from eqgraph import BASE_KEYS, EQGraph
 from hotkeys import MUTE, GlobalHotkeys
@@ -309,15 +310,19 @@ class App:
             row=r, column=0, columnspan=3, sticky="w", pady=(10, 0))
 
     def _device_tab(self, f):
-        ins, outs = device_names("input"), device_names("output")
+        opts_for = self._device_options()
+        outs = opts_for["output_device"]
         self.devs = {}
         r = 0
-        for key, label, opts in (("input_device", "Mic", [DEFAULT_DEVICE] + ins),
-                                 ("output_device", "Send to", outs),
-                                 ("monitor_device", "Headphones", [DEFAULT_DEVICE] + outs)):
+        for key, label in (("input_device", "Mic"), ("output_device", "Send to"),
+                           ("monitor_device", "Headphones")):
+            opts = opts_for[key]
             ttk.Label(f, text=label).grid(row=r, column=0, sticky="w")
             var = tk.StringVar(value=self._match(self.engine.cfg[key], opts))
             cb = ttk.Combobox(f, textvariable=var, values=opts, state="readonly", width=40)
+            # Re-read the device list each time a dropdown opens, so a headset that woke
+            # up or a mic plugged in after the app opened shows up.
+            cb.configure(postcommand=lambda c=cb, k=key: self._refresh_device_list(c, k))
             cb.grid(row=r, column=1, columnspan=2, sticky="ew", padx=6, pady=2)
             cb.bind("<<ComboboxSelected>>",
                     lambda e, k=key, v=var: self.change(k, "" if v.get() == DEFAULT_DEVICE else v.get()))
@@ -326,6 +331,18 @@ class App:
         if not any("CABLE" in o.upper() for o in outs):
             ttk.Label(f, text="VB-Cable not found: install it to send your voice to OBS/Discord.",
                       foreground="#c0392b").grid(row=r, column=0, columnspan=3, sticky="w", pady=(4, 0))
+
+    @staticmethod
+    def _device_options():
+        ins, outs = device_names("input"), device_names("output")
+        return {"input_device": [DEFAULT_DEVICE] + ins, "output_device": outs,
+                "monitor_device": [DEFAULT_DEVICE] + outs}
+
+    def _refresh_device_list(self, cb, key):
+        if self.engine.running:
+            return                     # rescanning would cut off the open audio streams
+        rescan_devices()
+        cb.configure(values=self._device_options()[key])
 
     @staticmethod
     def _match(name, opts):

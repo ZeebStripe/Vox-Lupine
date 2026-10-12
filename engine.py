@@ -82,6 +82,14 @@ def save_scenes(scenes):
     SCENES.write_text(json.dumps(scenes, indent=2) + "\n")
 
 
+def rescan_devices():
+    """PortAudio builds its device list once, when it starts, so a device switched on
+    later (a wireless headset waking from sleep, a USB mic plugged in) stays invisible.
+    Restarting PortAudio re-reads the list. Only call this while no stream is open."""
+    sd._terminate()
+    sd._initialize()
+
+
 def device_names(kind, host_api="Windows WASAPI"):
     """Names of input or output devices on one host API (WASAPI = lowest latency)."""
     names = []
@@ -255,6 +263,8 @@ class Engine:
     def start(self):
         c = self.cfg
         sr, block = c["samplerate"], c["block"]
+        if self.inp is None and self.main is None and self.mon is None:
+            rescan_devices()           # pick up a mic that woke up after the app opened
         try:
             in_idx, self.names["in"] = find_device(c["input_device"], "input", c["host_api"])
         except RuntimeError:
