@@ -1,4 +1,5 @@
-"""Real-time cleanup stage: rumble filter, de-popper, de-esser, noise gate.
+"""Real-time cleanup stage: rumble filter, de-popper, de-esser, noise reduction,
+noise gate.
 
 Processes audio block by block (default 256 samples = 5.3 ms at 48 kHz) so the
 exact same code runs in previews and live. Detection is relative to the current
@@ -11,6 +12,8 @@ back to the original exactly when no reduction is applied.
 """
 import numpy as np
 from pedalboard import HighpassFilter, LowpassFilter, Pedalboard
+
+from denoise import Denoise
 
 
 def _db(x):
@@ -95,9 +98,13 @@ class _LookaheadGate:
         return out
 
     def __call__(self, x):
-        # Gain decided at input time t is applied to output time t, which carries
-        # input from t - latency. A sustained onset at s confirms at s + latency,
-        # i.e. exactly when that onset leaves the delay line.
+        return self.delay_only(x) * self.gains(x)
+
+    def gains(self, x):
+        """Gate gain for the block leaving the delay line (advances the gate's state).
+        Gain decided at input time t is applied to output time t, which carries
+        input from t - latency. A sustained onset at s confirms at s + latency,
+        i.e. exactly when that onset leaves the delay line."""
         k = self.key(x[None, :], self.sr, reset=False)[0]
         g = np.empty(len(x), dtype=np.float32)
         for i in range(0, len(x), self.SUB):
@@ -105,13 +112,11 @@ class _LookaheadGate:
             prev = self.gain_db
             new = self._hop(10 * np.log10(np.mean(seg ** 2) + 1e-12))
             g[i:i + len(seg)] = np.linspace(prev, new, len(seg), endpoint=False)
-        buf = np.concatenate([self.delay, x])
-        out, self.delay = buf[:len(x)], buf[len(x):]
-        return out * 10 ** (g / 20)
+        return 10 ** (g / 20)
 
 
 class Cleanup:
-    def __init__(self, sr, block=256):
+    def __init__(self, sr, block=256, denoise=0.5):
         self.sr = sr
         # 12 dB/oct rumble filter: desk bumps, AC rumble, breath thumps.
         self.rumble = Pedalboard([HighpassFilter(cutoff_frequency_hz=80),
@@ -134,6 +139,10 @@ class Cleanup:
             release_ms=40, sr=sr, block=block)
         # Gate: silences keyboard clicks and fan noise between words.
         self.gate = _LookaheadGate(sr)
+        # Noise reduction: steady noise *under* the voice too. Its frame delay equals
+        # the gate's lookahead, so both share it and the stage adds no extra latency.
+        self.denoise = Denoise(sr, denoise)
+        assert self.denoise.latency == self.gate.latency
         self.latency = self.gate.latency
         self.enabled = True
 
@@ -145,7 +154,9 @@ class Cleanup:
         total = _db(x)
         x = self.depop(x[None, :], total)[0]
         x = self.deess(x[None, :], total)[0]
-        return self.gate(x)
+        g = self.gate.gains(x)
+        self.gate.delay_only(x)       # keep the plain delay line current for bypass
+        return self.denoise(x, speech=self.gate.is_open) * g
 
 
 def process_blocks(fn, x, block=256):

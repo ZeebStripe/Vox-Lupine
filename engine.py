@@ -52,14 +52,15 @@ DEFAULTS = {
     # gain control can clip that into static while you talk. -8.5 dB avoids it.
     "volume_db": -8.5,
     "cleanup": True,
+    "denoise": 0.5,           # noise reduction strength (part of cleanup), 0..1
     "bypass": False,
     "hotkeys": True,          # Ctrl+Alt+1..9 switch presets, even while a game has focus
     **FX_DEFAULTS,
 }
 FX_KEYS = set(FX_DEFAULTS)
-LIVE_KEYS = {"preset", "warmth", "bright", "volume_db", "cleanup", "bypass"} | FX_KEYS
+LIVE_KEYS = {"preset", "warmth", "bright", "volume_db", "cleanup", "denoise", "bypass"} | FX_KEYS
 # What a saved "scene" stores: the sound, not devices or the bypass switch.
-SCENE_KEYS = ["preset", "warmth", "bright", "volume_db", "cleanup"] + list(FX_DEFAULTS)
+SCENE_KEYS = ["preset", "warmth", "bright", "volume_db", "cleanup", "denoise"] + list(FX_DEFAULTS)
 SCENES = DATA / "scenes.json"
 
 
@@ -139,6 +140,7 @@ def make_voice(cfg):
     v = Voice(PRESETS.get(cfg["preset"]), cfg["samplerate"], cfg["block"],
               warmth=cfg["warmth"], bright=cfg["bright"])
     apply_setting(v, "cleanup", cfg["cleanup"])
+    apply_setting(v, "denoise", cfg["denoise"])
     apply_setting(v, "volume_db", cfg["volume_db"])
     apply_setting(v, "bypass", cfg["bypass"])
     for k in FX_KEYS:
@@ -159,6 +161,8 @@ def apply_setting(v, key, value):
         v.set_out_gain_db(value)
     elif key == "cleanup":
         v.set_cleanup(value)
+    elif key == "denoise":
+        v.set_denoise(value)
     elif key == "bypass":
         v.bypass = value
 

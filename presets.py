@@ -85,6 +85,10 @@ class Voice:
         if self.cleanup:
             self.cleanup.enabled = on
 
+    def set_denoise(self, s):
+        if self.cleanup:
+            self.cleanup.denoise.set_strength(s)
+
     def set_out_gain_db(self, db):
         self.out_gain = 10 ** (db / 20)
 

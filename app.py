@@ -286,6 +286,7 @@ class App:
         r = self._slider(f, r, "bright", "Brightness", 0, 1.5, 0.05, "{:.2f}")
         r = self._slider(f, r, "volume_db", "Volume", -24, 6, 0.5, "{:+.1f} dB")
         r = self._check(f, r, "cleanup", "Noise cleanup (pops, clicks, hiss, harsh s)")
+        r = self._slider(f, r, "denoise", "Noise reduction", 0, 1, 0.05, "{:.0%}")
         r = self._head(f, r, "Tone", "extra EQ on top")
         r = self._slider(f, r, "eq_bass", "Bass", -12, 12, 0.5, "{:+.1f} dB")
         r = self._slider(f, r, "eq_mid", "Mid", -12, 12, 0.5, "{:+.1f} dB")

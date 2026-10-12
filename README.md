@@ -8,8 +8,9 @@ A small Windows app that cleans up and styles your microphone **in real time** a
 sends it to a virtual mic, so OBS, Discord, games and chat apps all hear the
 processed voice. Made with streamers and PNGtubers in mind.
 
-- **Cleanup:** rumble filter, de-popper for plosives, de-esser, and a smart noise gate
-  that ignores keyboard clicks
+- **Cleanup:** rumble filter, de-popper for plosives, de-esser, **noise reduction** that
+  removes steady background noise (fans, PC hum, hiss) even while you talk, and a smart
+  noise gate that ignores keyboard clicks
 - **Tone:** warmth, brightness, a choice of voice styles, and bass/mid/treble
 - **Draggable 5-point EQ** with a live curve, plus built-in EQ presets for speech
 - **Effects:** grit/growl, radio, chorus/vibrato/flanger/phaser/tremolo/robot, echo, reverb
@@ -54,6 +55,10 @@ the right Windows settings. Check your input device in Windows' sound settings f
 **Your voice isn't reaching OBS or Discord?** Set the microphone in that app to
 **CABLE Output (VB-Audio Virtual Cable)**, make sure Vox Lupine says **Running**, and
 check that **Send to** on the Devices tab is **CABLE Input**.
+
+**Fan, hum or hiss in the background?** Raise **Noise reduction** on the Voice tab
+(Noise cleanup must be on). It handles steady noise; sudden sounds like keyboard clicks
+are left to the noise gate between words.
 
 **Static or crackle while talking** (Discord, Telegram, etc.)? Lower **Volume** on the
 Voice tab a few dB and keep the **Voice out** meter mostly green.
@@ -142,6 +147,10 @@ which is normal for any live voice processing.
   - **Off**: your mic as it is, with no shaping or levelling, so it's quieter.
 - **Warmth**, **Brightness**, **Volume**, **Noise cleanup** on/off, and **Bass / Mid /
   Treble** for extra tone on top.
+- **Noise reduction** sets how hard steady background noise is pushed down (default
+  50%). It learns your room's noise while you're quiet, so give it a second or two after
+  Start, and stay quiet for a moment if the noise changes (a fan turning on). Very high
+  settings can make the background sound a little watery.
 
 **EQ tab:** a 5-point EQ on a graph.
 - Drag a point left/right to change frequency and up/down to boost or cut.
@@ -216,7 +225,7 @@ absorbs timing differences between the two devices.
 | `app.py` | The window |
 | `engine.py` | Audio devices, buffering and settings |
 | `presets.py` | The voice chain and voice styles |
-| `cleanup.py`, `warmth.py`, `bright.py`, `fx.py`, `peq.py` | Processing stages |
+| `cleanup.py`, `denoise.py`, `warmth.py`, `bright.py`, `fx.py`, `peq.py` | Processing stages |
 | `eqgraph.py` | The EQ tab |
 | `hotkeys.py` | Global Ctrl+Alt+1–9 |
 
