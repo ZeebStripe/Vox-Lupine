@@ -41,6 +41,7 @@ DEFAULTS = {
     "output_device": "CABLE Input",  # VB-Cable; apps then use "CABLE Output" as their mic
     "monitor_device": "",            # "" = Windows default speakers/headphones
     "monitor": False,
+    "monitor_volume_db": 0.0,        # headphone playback only; not what apps receive
     "host_api": "Windows WASAPI",
     "samplerate": 48000,
     "block": 256,
@@ -206,6 +207,12 @@ class Engine:
         self.proc_ms = deque(maxlen=400)
         self.names = {}
         self._reset_mic_health()
+        # Mute silences everything we send (VB-Cable and headphones) while the mic
+        # stays open, so headsets that un-mute themselves when recording starts
+        # can't interfere. Not a saved setting: the app always opens unmuted.
+        self.muted = False
+        self._send_gain = 1.0                 # ramps between 0 and 1 (no clicks)
+        self.mon_gain = 10 ** (self.cfg["monitor_volume_db"] / 20)
 
     # ----- microphone health -----
     # A working mic always picks up some room noise, so long stretches of *exact*
@@ -237,6 +244,8 @@ class Engine:
         self.cfg[key] = value
         if key in LIVE_KEYS:
             self.pending.append((key, value))
+        elif key == "monitor_volume_db":
+            self.mon_gain = 10 ** (value / 20)
         elif key == "monitor" and self.running:
             self._set_monitor(value)
         elif key in ("input_device", "output_device", "monitor_device") and self.running:
@@ -319,9 +328,13 @@ class Engine:
         peak_db = 20 * np.log10(peak + 1e-12)
         self.mic_loudest_db = max(self.mic_loudest_db, peak_db)
         self.in_db = max(max(peak_db, -180.0), self.in_db - 1.5)
+        target = 0.0 if self.muted else 1.0
+        if target != self._send_gain or target != 1.0:
+            y = y * np.linspace(self._send_gain, target, len(y), dtype=np.float32)  # 5 ms fade
+            self._send_gain = target
         self.out_db = max(20 * np.log10(np.abs(y).max() + 1e-9), self.out_db - 1.5)
         self.main.push(y)
         with self.lock:
             if self.mon:
-                self.mon.push(y)
+                self.mon.push(np.clip(y * self.mon_gain, -1.0, 1.0).astype(np.float32))
         self.proc_ms.append((time.perf_counter() - start) * 1000)

@@ -58,6 +58,11 @@ check that **Send to** on the Devices tab is **CABLE Input**.
 **Static or crackle while talking** (Discord, Telegram, etc.)? Lower **Volume** on the
 Voice tab a few dB and keep the **Voice out** meter mostly green.
 
+**Headset un-mutes itself when you press Start?** Some wireless headsets (Corsair, for
+example) reset their own mute button whenever an app starts recording. Vox Lupine can't
+change that, so use Vox Lupine's **Mute** button or **Ctrl+Alt+0** instead: it silences
+everything you send, whatever the headset does.
+
 **"Windows protected your PC" when installing?** The installer isn't code-signed. Click
 **More info → Run anyway**.
 
@@ -107,8 +112,9 @@ Set the microphone in each app to **CABLE Output (VB-Audio Virtual Cable)**:
 - **Discord:** Settings → Voice & Video → Input Device → **CABLE Output**.
 - **Games and other apps:** choose **CABLE Output** as the mic.
 
-To hear yourself, tick **Listen in headphones**. There's a slight delay, which is
-normal for any live voice processing.
+To hear yourself, tick **Listen in headphones**. A small volume slider appears next to
+it; it only changes what *you* hear, not what your apps get. There's a slight delay,
+which is normal for any live voice processing.
 
 > **PNGtuber tip:** point your avatar app (veadotube, PNGTuber Plus, etc.) at your
 > **real microphone**, not CABLE Output, so mouth movement reacts instantly. If the
@@ -119,8 +125,12 @@ normal for any live voice processing.
 
 **Top area** (always visible)
 - **Start / Stop**, plus the status line: delay, CPU use and a **glitch counter**
+- **Mute** (or **Ctrl+Alt+0** from anywhere) silences everything you send, to your apps
+  and your headphones. It turns red while muted and stays muted across Stop/Start;
+  the app always opens unmuted.
 - **Mic in / Voice out** meters
 - **Bypass** hears your raw voice for A/B comparison
+- **Listen in headphones**, with its own volume slider while it's on
 - **Preset** dropdown, and the **Presets** menu in the menu bar
 
 **Voice tab:** base tone (subtle / match / husky / none), warmth, brightness, volume,
@@ -140,7 +150,7 @@ Everything defaults to off. **Reset effects** turns it all off again.
 
 **Presets** (menu bar)
 - Click a preset to switch to it. The first nine also have **Ctrl+Alt+1–9**, which
-  work system-wide (you can turn that off in the menu).
+  work system-wide, like **Ctrl+Alt+0** for mute (you can turn them off in the menu).
 - **Save current sound as new preset**, **Update**, **Rename**, **Move up/down** (this
   changes its number) and **Delete**.
 - The window title shows the active preset and adds "(modified)" after you change it.

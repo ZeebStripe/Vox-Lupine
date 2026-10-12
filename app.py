@@ -14,7 +14,7 @@ from about import APP_NAME
 from engine import (SCENE_KEYS, SCENES, Engine, device_names, load_config, load_scenes,
                     save_config, save_scenes)
 from eqgraph import BASE_KEYS, EQGraph
-from hotkeys import GlobalHotkeys
+from hotkeys import MUTE, GlobalHotkeys
 from micaccess import mic_access_problems
 from fx import DEFAULTS as FX_DEFAULTS, MOD_TYPES
 from presets import PRESETS
@@ -62,7 +62,12 @@ class App:
         top.grid(sticky="ew")
         top.columnconfigure(1, weight=1)
         self.run_btn = ttk.Button(top, text="▶  Start", style="Big.TButton", command=self.toggle)
-        self.run_btn.grid(row=0, column=0, columnspan=3, sticky="ew")
+        self.run_btn.grid(row=0, column=0, columnspan=2, sticky="ew")
+        # tk.Button (not ttk) so it can turn red while muted.
+        self.mute_btn = tk.Button(top, text="Mute", font=("Segoe UI", 11, "bold"), width=8,
+                                  relief="groove", command=self.toggle_mute)
+        self.mute_btn.grid(row=0, column=2, sticky="nsew", padx=(6, 0))
+        self.mute_default_bg = self.mute_btn.cget("bg")
         self.status = ttk.Label(top, text="Stopped", foreground="#777")
         self.status.grid(row=1, column=0, columnspan=3, sticky="w", pady=(4, 8))
         self.meters = {}
@@ -80,8 +85,34 @@ class App:
                         command=lambda: self.change("bypass", self.bypass_var.get())).pack(side="left")
         mon = tk.BooleanVar(value=self.engine.cfg["monitor"])
         ttk.Checkbutton(toggles, text="Listen in headphones", variable=mon,
-                        command=lambda: self.change("monitor", mon.get())).pack(side="left", padx=(16, 0))
+                        command=lambda: (self.change("monitor", mon.get()),
+                                         self._show_monitor_volume())).pack(side="left", padx=(16, 0))
         self.checks["monitor"] = mon
+        # Headphone volume: only shown while listening. It lives in a fixed-size slot so
+        # showing/hiding it never shifts the layout or resizes the window.
+        self.mon_slot = ttk.Frame(toggles)
+        self.mon_slot.pack(side="left")
+        self.mon_vol = ttk.Frame(self.mon_slot)
+        var = tk.DoubleVar(value=self.engine.cfg["monitor_volume_db"])
+        val = ttk.Label(self.mon_vol, width=6)
+
+        def moved(_=None):
+            v = round(var.get() * 2) / 2
+            val.config(text=f"{v:+.0f} dB" if v else "0 dB")
+            if v != self.engine.cfg["monitor_volume_db"]:
+                self.change("monitor_volume_db", v)
+
+        s = ttk.Scale(self.mon_vol, from_=-24, to=6, variable=var, command=moved, length=80)
+        s.pack(side="left", padx=(6, 2))
+        s.bind("<Double-Button-1>", lambda e: (var.set(0.0), moved()))
+        val.pack(side="left")
+        moved()
+        self.sliders["monitor_volume_db"] = (var, val, "{:+.0f} dB")
+        self.mon_vol.update_idletasks()
+        self.mon_slot.config(width=self.mon_vol.winfo_reqwidth(),
+                             height=self.mon_vol.winfo_reqheight())
+        self.mon_slot.pack_propagate(False)
+        self._show_monitor_volume()
         self._scene_row(top, 5)
         menubar = tk.Menu(root)
         self.preset_menu = tk.Menu(menubar, tearoff=False)
@@ -310,6 +341,8 @@ class App:
             val.config(text=fmt.format(value))
         elif key in self.checks:
             self.checks[key].set(value)
+            if key == "monitor":
+                self._show_monitor_volume()
         elif key in self.combos:
             var, from_cfg = self.combos[key]
             var.set(from_cfg(value))
@@ -443,7 +476,7 @@ class App:
         m.add_command(label=f"Move {label} down", command=lambda: self.move_scene(1), state=st)
         m.add_command(label=f"Delete {label}…", command=self.delete_scene, state=st)
         m.add_separator()
-        m.add_checkbutton(label="Global hotkeys Ctrl+Alt+1–9 (work in games)",
+        m.add_checkbutton(label="Global hotkeys: Ctrl+Alt+1–9 presets, Ctrl+Alt+0 mute",
                           variable=self.hotkeys_var, command=self._toggle_hotkeys)
 
     # ---------- global hotkeys ----------
@@ -462,7 +495,28 @@ class App:
 
     def _poll_hotkeys(self):
         while not self.hotkeys.presses.empty():
-            self.load_scene_number(self.hotkeys.presses.get_nowait())
+            n = self.hotkeys.presses.get_nowait()
+            if n == MUTE:
+                self.toggle_mute()
+            else:
+                self.load_scene_number(n)
+
+    # ---------- mute / headphone volume ----------
+    def toggle_mute(self):
+        self.engine.muted = not self.engine.muted
+        if self.engine.muted:
+            self.mute_btn.config(text="MUTED", bg="#c0392b", fg="white", activebackground="#a93226",
+                                 activeforeground="white")
+        else:
+            self.mute_btn.config(text="Mute", bg=self.mute_default_bg, fg="black",
+                                 activebackground=self.mute_default_bg, activeforeground="black")
+        self.update_dirty()            # refreshes the window title
+
+    def _show_monitor_volume(self):
+        if self.checks["monitor"].get():
+            self.mon_vol.pack(side="left", fill="y")
+        else:
+            self.mon_vol.pack_forget()
 
     def toggle(self):
         if self.engine.running:
@@ -501,6 +555,8 @@ class App:
         title = APP_NAME
         if self.active_scene:
             title += f" — {self.active_scene}" + (" (modified)" if self._scene_modified() else "")
+        if self.engine.muted:
+            title += " — MUTED"
         if self.root.title() != title:
             self.root.title(title)
 
@@ -527,13 +583,16 @@ class App:
         self._set(self.run_btn, text="■  Stop" if e.running else "▶  Start")
         if e.running:
             mon = "  + headphones" if e.cfg["monitor"] else ""
+            head = ("MUTED: nobody hears you (Ctrl+Alt+0 to unmute)" if e.muted
+                    else f"Running → {e.names.get('out', '?')}{mon}")
             self._set(self.status,
-                      text=f"Running → {e.names.get('out', '?')}{mon}\n"
+                      text=f"{head}\n"
                            f"delay ~{e.latency_ms():.0f} ms · CPU {e.cpu_ms():.1f} ms/block · "
                            f"glitches {e.underruns + e.drops}",
-                      foreground="#1e8449")
+                      foreground="#c0392b" if e.muted else "#1e8449")
         else:
-            self._set(self.status, text="Stopped", foreground="#777")
+            self._set(self.status, text="Stopped" + (" · muted" if e.muted else ""),
+                      foreground="#777")
         for key, db in (("in", e.in_db), ("out", e.out_db)):
             c, lbl = self.meters[key]
             if not hasattr(c, "bar"):
